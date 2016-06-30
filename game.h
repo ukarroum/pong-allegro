@@ -27,6 +27,20 @@ enum Mode
 };
 typedef enum Mode Mode;
 
+/********************
+ * ** Structures ****
+ * ******************
+ */
+enum {KEY_UP,KEY_DOWN, KEY_A, KEY_Q, KEY_MAX};
+
+struct Paddle
+{
+    ALLEGRO_BITMAP* img;
+    int x;
+    int y;
+    int score;
+};
+typedef struct Paddle Paddle;
 
 void error(const char *err);
 void initGame(ALLEGRO_DISPLAY **display, ALLEGRO_EVENT_QUEUE **queue);
@@ -35,5 +49,5 @@ void drawMenu(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue);
 void loopMenu(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue);
 void loopGame(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue);
 
-void updatesScorePlayers(int player1, int player2);
+void updatesScorePlayers();
 #endif //PONG_ALLEGRO_GAME_H

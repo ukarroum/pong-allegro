@@ -12,8 +12,8 @@
 
 ALLEGRO_FONT *openSans12 = NULL;
 Mode mode = SOLO;
-ALLEGRO_BITMAP* player1;
-ALLEGRO_BITMAP* player2;
+Paddle player1 = {0};
+Paddle player2 = {0};
 
 void error(const char *err)
 {
@@ -28,6 +28,8 @@ void initGame(ALLEGRO_DISPLAY **display, ALLEGRO_EVENT_QUEUE **queue)
      * ***** Initialisation ********
      * *****************************
      */
+    ALLEGRO_TIMER*timer;
+
     if(!al_init())
         error("al_init()");
 
@@ -54,6 +56,12 @@ void initGame(ALLEGRO_DISPLAY **display, ALLEGRO_EVENT_QUEUE **queue)
     if(!openSans12)
         error("al_load_font()");
 
+    timer = al_create_timer(1.0 / 30);
+    if (!timer)
+        error("al_create_timer()");
+
+    if(!al_init_primitives_addon())
+        error("al_primitives_addon()");
 
     /************************
      * ** Evenements ********
@@ -66,15 +74,40 @@ void initGame(ALLEGRO_DISPLAY **display, ALLEGRO_EVENT_QUEUE **queue)
         error("al_create_event_queue");
 
     al_register_event_source(*queue, al_get_display_event_source(*display));
-    al_register_event_source(*queue, al_get_mouse_event_source());
+    al_register_event_source(*queue, al_get_timer_event_source(timer));
     al_register_event_source(*queue, al_get_keyboard_event_source());
+
+    /* Definition des raquettes des deux joueurs */
+
+    al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
+
+    player1.img = al_create_bitmap(10, 60);
+    player2.img = al_create_bitmap(10, 60);
+
+    if (!player1.img || !player2.img)
+        error("al_create_bitmap()");
+
+    player1.x = 20;
+    player1.y = GAME_HEIGHT/2;
+    player1.score = 0;
+    al_set_target_bitmap(player1.img);
+    al_clear_to_color(WHITE);
+    al_set_target_backbuffer(*display);
+
+    player2.x = GAME_WIDTH - 20 - 10;
+    player2.y = GAME_HEIGHT/2;
+    player2.score = 0;
+    al_set_target_bitmap(player2.img);
+    al_clear_to_color(WHITE);
+    al_set_target_backbuffer(*display);
+
 
     /*************************************
      * ***** Tracer le menu **************
      * ***********************************
      */
-    if(!al_init_primitives_addon())
-        error("al_primitives_addon()");
+
+    al_start_timer(timer);
 
     drawMenu(*display, *queue);
 }
@@ -132,25 +165,20 @@ void drawWorld(ALLEGRO_DISPLAY *display)
         al_draw_line(GAME_WIDTH/2, i, GAME_WIDTH/2, i + 10, WHITE, 3);
 
     //Dessin des deux raquettes virtuelles
-    al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
 
-    player1 = al_create_bitmap(10, 60);
-    player2 = al_create_bitmap(10, 60);
+    if(player1.y < 0)
+        player1.y = 0;
+    if(player1.y > GAME_HEIGHT - 60)
+        player1.y = GAME_HEIGHT - 60;
+    if(player2.y < 0)
+        player2.y = 0;
+    if(player2.y > GAME_HEIGHT - 60)
+        player2.y = GAME_HEIGHT - 60;
 
-    if (!player1 || !player2)
-        error("al_create_bitmap()");
+    al_draw_bitmap(player1.img, player1.x, player1.y, 0);
+    al_draw_bitmap(player2.img, player2.x, player2.y, 0);
 
-    al_set_target_bitmap(player1);
-    al_clear_to_color(WHITE);
-    al_set_target_backbuffer(display);
-    al_draw_bitmap(player1, 20, GAME_HEIGHT/2, 0);
-
-    al_set_target_bitmap(player2);
-    al_clear_to_color(WHITE);
-    al_set_target_backbuffer(display);
-    al_draw_bitmap(player2, GAME_WIDTH - 20 - 10, GAME_HEIGHT/2, 0);
-
-    updatesScorePlayers(0, 0);
+    updatesScorePlayers();
 
     al_flip_display();
 
@@ -158,30 +186,75 @@ void drawWorld(ALLEGRO_DISPLAY *display)
 }
 void loopGame(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue)
 {
-    int fin = 1;
-    while(fin)
-    {
+    bool fin = true;
+    bool dessine = true;
+    bool key[KEY_MAX]={0};
+
+    while(fin) {
         ALLEGRO_EVENT event = {0};
 
         al_wait_for_event(queue, &event);
 
-        switch(event.type)
-        {
+        switch (event.type) {
             case ALLEGRO_EVENT_DISPLAY_CLOSE:
-                fin = 0;
+                fin = false;
+                break;
+            case ALLEGRO_EVENT_KEY_DOWN:
+                switch (event.keyboard.keycode) {
+                    case ALLEGRO_KEY_UP:
+                        key[KEY_UP] = true;
+                        break;
+                    case ALLEGRO_KEY_DOWN:
+                        key[KEY_DOWN] = true;
+                        break;
+                    case ALLEGRO_KEY_A:
+                        key[KEY_A] = true;
+                        break;
+                    case ALLEGRO_KEY_Q:
+                        key[KEY_Q] = true;
+                        break;
+                }
+                break;
+            case ALLEGRO_EVENT_KEY_UP:
+                switch (event.keyboard.keycode) {
+                    case ALLEGRO_KEY_UP:
+                        key[KEY_UP] = false;
+                        break;
+                    case ALLEGRO_KEY_DOWN:
+                        key[KEY_DOWN] = false;
+                        break;
+                    case ALLEGRO_KEY_A:
+                        key[KEY_A] = false;
+                        break;
+                    case ALLEGRO_KEY_Q:
+                        key[KEY_Q] = false;
+                        break;
+                }
+                break;
+            case ALLEGRO_EVENT_TIMER:
+                player1.y -= key[KEY_UP] * 10;
+                player1.y += key[KEY_DOWN] * 10;
+                if(mode == MULTI)
+                {
+                    player2.y -= key[KEY_A] * 10;
+                    player2.y += key[KEY_Q] * 10;
+                }
+                dessine = true;
                 break;
         }
+        if (dessine == true && al_is_event_queue_empty(queue))
+            drawWorld(display);
     }
 }
-void updatesScorePlayers(int player1, int player2)
+void updatesScorePlayers()
 {
     if(mode == MULTI){
-        al_draw_textf(openSans12, WHITE, SCREEN_WIDTH*0.1, GAME_HEIGHT + 10, 0, "Joueur 1 : %d", player1);
-        al_draw_textf(openSans12, WHITE, SCREEN_WIDTH*0.1, GAME_HEIGHT + 50, 0, "Joueur 2 : %d", player2);
+        al_draw_textf(openSans12, WHITE, SCREEN_WIDTH*0.1, GAME_HEIGHT + 10, 0, "Joueur 1 : %d", player1.score);
+        al_draw_textf(openSans12, WHITE, SCREEN_WIDTH*0.1, GAME_HEIGHT + 50, 0, "Joueur 2 : %d", player2.score);
     }
     else{
-        al_draw_textf(openSans12, WHITE, SCREEN_WIDTH*0.1, GAME_HEIGHT + 10, 0, "Joueur : %d", player1);
-        al_draw_textf(openSans12, WHITE, SCREEN_WIDTH*0.1, GAME_HEIGHT + 50, 0, "Machine : %d", player2);
+        al_draw_textf(openSans12, WHITE, SCREEN_WIDTH*0.1, GAME_HEIGHT + 10, 0, "Joueur : %d", player1.score);
+        al_draw_textf(openSans12, WHITE, SCREEN_WIDTH*0.1, GAME_HEIGHT + 50, 0, "Machine : %d", player2.score);
     }
 
     al_flip_display();
