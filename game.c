@@ -229,7 +229,10 @@ void drawWorld()
     if(ball.x + 14 < 0)
     {
         al_stop_timer(timer);
-        al_show_native_message_box(al_get_current_display(),"Bravo !", "Bravo !", "Vous avez gagné !",NULL,0);
+        if(mode == MULTI)
+            al_show_native_message_box(al_get_current_display(),"Bravo !", "Bravo !", "Vous avez gagné !",NULL,0);
+        else
+            al_show_native_message_box(al_get_current_display(),"Pas de chance !", "Pad de chance !", "Vous avez perdu :( !",NULL,0);
         player2.score++;
         lunchBall();
         al_start_timer(timer);
@@ -304,6 +307,8 @@ void loopGame()
                 }
                 ball.x += ball.dx;
                 ball.y += ball.dy;
+                if(mode == SOLO)
+                    playComputer();
                 if(al_is_event_queue_empty(queue))
                     drawWorld();
                 break;
@@ -336,4 +341,22 @@ void lunchBall()
 
     player1.y = GAME_WIDTH/2;
     player2.y = GAME_WIDTH/2;
+}
+void playComputer()
+{
+    /*********************************************
+     * ** Deplace la raquette dans le mode solo***
+     * *******************************************
+     */
+    /*
+     * Si la balle est dans la partie gauche(celle de l'adversaire) la raquette reste immobile.
+     * SI la balle se dirige vers la partie gauche la raquette reste immobile (sinon le jeu devient bien plus difficile)
+     */
+    if(ball.x < GAME_WIDTH/2 || ball.dx < 0)
+        return;
+
+    if(ball.y > player2.y + 30)
+        player2.y += 4 + rand() % 2;
+    else if(ball.y + 14 < player2.y + 30)
+        player2.y -= 4 + rand() % 2;
 }

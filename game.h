@@ -61,6 +61,10 @@ void drawWorld();
 void drawMenu();
 void loopMenu();
 void loopGame();
+void updatesScorePlayers();
+void lunchBall();
+void playComputer();
+
 
 void updatesScorePlayers();
 #endif //PONG_ALLEGRO_GAME_H
