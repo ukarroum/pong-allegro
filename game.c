@@ -10,10 +10,15 @@
 
 #include "game.h"
 
+ALLEGRO_DISPLAY *display = NULL;
+ALLEGRO_EVENT_QUEUE *queue = NULL;
+ALLEGRO_TIMER*timer;
+
 ALLEGRO_FONT *openSans12 = NULL;
 Mode mode = SOLO;
 Paddle player1 = {0};
 Paddle player2 = {0};
+Ball ball = {0};
 
 void error(const char *err)
 {
@@ -22,23 +27,21 @@ void error(const char *err)
     al_show_native_message_box(dialogErr,"ERREUR", "Erreur", err,NULL,0);
     exit(EXIT_FAILURE);
 }
-void initGame(ALLEGRO_DISPLAY **display, ALLEGRO_EVENT_QUEUE **queue)
+void initGame()
 {
     /*******************************
      * ***** Initialisation ********
      * *****************************
      */
-    ALLEGRO_TIMER*timer;
-
     if(!al_init())
         error("al_init()");
 
-    *display = al_create_display(SCREEN_WIDTH, SCREEN_HEIGHT);
+    display = al_create_display(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    if(!*display)
+    if(!display)
         error("creation display");
 
-    al_set_window_title(*display, "Pong");
+    al_set_window_title(display, "Pong");
 
     if(!al_install_mouse())
         error("al_install_keyboard()");
@@ -68,14 +71,14 @@ void initGame(ALLEGRO_DISPLAY **display, ALLEGRO_EVENT_QUEUE **queue)
      * **********************
      */
 
-    *queue = al_create_event_queue();
+    queue = al_create_event_queue();
 
-    if(!*queue)
+    if(!queue)
         error("al_create_event_queue");
 
-    al_register_event_source(*queue, al_get_display_event_source(*display));
-    al_register_event_source(*queue, al_get_timer_event_source(timer));
-    al_register_event_source(*queue, al_get_keyboard_event_source());
+    al_register_event_source(queue, al_get_display_event_source(display));
+    al_register_event_source(queue, al_get_timer_event_source(timer));
+    al_register_event_source(queue, al_get_keyboard_event_source());
 
     /* Definition des raquettes des deux joueurs */
 
@@ -92,14 +95,28 @@ void initGame(ALLEGRO_DISPLAY **display, ALLEGRO_EVENT_QUEUE **queue)
     player1.score = 0;
     al_set_target_bitmap(player1.img);
     al_clear_to_color(WHITE);
-    al_set_target_backbuffer(*display);
+    al_set_target_backbuffer(display);
 
     player2.x = GAME_WIDTH - 20 - 10;
     player2.y = GAME_HEIGHT/2;
     player2.score = 0;
     al_set_target_bitmap(player2.img);
     al_clear_to_color(WHITE);
-    al_set_target_backbuffer(*display);
+    al_set_target_backbuffer(display);
+
+    // La balle
+
+    ball.img = al_create_bitmap(14, 14);
+    ball.x = -1;
+    ball.y = -1;
+    ball.dx = 0;
+    ball.dy = 0;
+
+    al_set_target_bitmap(ball.img);
+    al_clear_to_color(TRANSPARENT);
+    al_draw_filled_circle(7, 7, 7, WHITE);
+    al_set_target_backbuffer(display);
+
 
 
     /*************************************
@@ -109,9 +126,12 @@ void initGame(ALLEGRO_DISPLAY **display, ALLEGRO_EVENT_QUEUE **queue)
 
     al_start_timer(timer);
 
-    drawMenu(*display, *queue);
+    srand(time(NULL));
+
+
+    drawMenu();
 }
-void drawMenu(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue)
+void drawMenu()
 {
     ALLEGRO_FONT *openSans62;
     openSans62 = al_load_ttf_font("../fonts/OpenSans-Light.ttf", 62, 0);
@@ -126,9 +146,9 @@ void drawMenu(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue)
 
     al_flip_display();
 
-    loopMenu(display, queue);
+    loopMenu();
 };
-void loopMenu(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue)
+void loopMenu()
 {
     int fin = 1;
     while(fin)
@@ -145,18 +165,20 @@ void loopMenu(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue)
                 if (event.keyboard.keycode == ALLEGRO_KEY_1) {
                     mode = SOLO;
                     fin = 0;
-                    drawWorld(display);
+                    drawWorld();
+                    lunchBall();
                 }
                 else if (event.keyboard.keycode == ALLEGRO_KEY_2) {
                     mode = MULTI;
                     fin = 0;
-                    drawWorld(display);
+                    drawWorld();
+                    lunchBall();
                 }
                 break;
         }
     }
 }
-void drawWorld(ALLEGRO_DISPLAY *display)
+void drawWorld()
 {
     al_clear_to_color(al_map_rgb(0, 0, 0));
 
@@ -178,16 +200,57 @@ void drawWorld(ALLEGRO_DISPLAY *display)
     al_draw_bitmap(player1.img, player1.x, player1.y, 0);
     al_draw_bitmap(player2.img, player2.x, player2.y, 0);
 
+    //Dessin de la balle
+
+    /****** Test si la ball a atteint le bas ou le haut de l'ecran si c'est le case je change ca direction ******/
+    if(ball.y < 0)
+    {
+        ball.y = 0;
+        ball.dy *= -1;
+    }
+    if(ball.y > GAME_HEIGHT - 14)
+    {
+        ball.y = GAME_HEIGHT - 14;
+        ball.dy *= -1;
+    }
+
+    /********* gestion des collisions ********/
+    if(ball.x <= player1.x + 10 && ball.x >= player1.x && ball.y >= player1.y && ball.y + 7 <= player1.y + 60)
+    {
+        ball.dx *= -1;
+    }
+    if(ball.x + 14 <= player2.x + 10 && ball.x + 14 >= player2.x && ball.y >= player2.y && ball.y + 7 <= player2.y + 60)
+    {
+        ball.dx *= -1;
+    }
+
+    al_draw_bitmap(ball.img, ball.x, ball.y, 0);
+
+    if(ball.x + 14 < 0)
+    {
+        al_stop_timer(timer);
+        al_show_native_message_box(al_get_current_display(),"Bravo !", "Bravo !", "Vous avez gagné !",NULL,0);
+        player2.score++;
+        lunchBall();
+        al_start_timer(timer);
+    }
+    else if(ball.x > GAME_WIDTH)
+    {
+        al_stop_timer(timer);
+        al_show_native_message_box(al_get_current_display(),"Bravo !", "Bravo !", "Vous avez gagné !",NULL,0);
+        player1.score++;
+        lunchBall();
+        al_start_timer(timer);
+    }
+
+    //Affichage des scores
     updatesScorePlayers();
 
     al_flip_display();
-
-    //srand(time(NULL));
 }
-void loopGame(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue)
+void loopGame()
 {
     bool fin = true;
-    bool dessine = true;
     bool key[KEY_MAX]={0};
 
     while(fin) {
@@ -239,11 +302,12 @@ void loopGame(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue)
                     player2.y -= key[KEY_A] * 10;
                     player2.y += key[KEY_Q] * 10;
                 }
-                dessine = true;
+                ball.x += ball.dx;
+                ball.y += ball.dy;
+                if(al_is_event_queue_empty(queue))
+                    drawWorld();
                 break;
         }
-        if (dessine == true && al_is_event_queue_empty(queue))
-            drawWorld(display);
     }
 }
 void updatesScorePlayers()
@@ -258,4 +322,18 @@ void updatesScorePlayers()
     }
 
     al_flip_display();
+}
+void lunchBall()
+{
+    ball.x = GAME_WIDTH/2;
+    ball.y = GAME_HEIGHT/2;
+    /****** les valeurs sont dans l'intervalle [3, 6] (trouvé par experimentation) *********/
+    ball.dx = -3 - rand()%3;
+    if(rand()%1 == 0)
+        ball.dy = 3 + rand()%3;
+    else
+        ball.dy = -3 - rand()%3;
+
+    player1.y = GAME_WIDTH/2;
+    player2.y = GAME_WIDTH/2;
 }

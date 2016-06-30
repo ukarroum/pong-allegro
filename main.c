@@ -15,12 +15,9 @@
 
 int main()
 {
-    ALLEGRO_DISPLAY *display;
-    ALLEGRO_EVENT_QUEUE *queue;
-
-    initGame(&display, &queue);
-    loopGame(display, queue);
-    //destroyGame(&display);
+    initGame();
+    loopGame();
+    //destroyGame();
 
     //printf("%d", minimax());
     return 0;

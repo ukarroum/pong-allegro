@@ -16,6 +16,8 @@
  * *******************
  */
 #define WHITE al_map_rgb( 255, 255, 255)
+#define BLACK al_map_rgb(0, 0, 0)
+#define TRANSPARENT al_map_rgba(0, 0, 0, 0)
 
 /********************
  * ** Enumerations **
@@ -42,12 +44,23 @@ struct Paddle
 };
 typedef struct Paddle Paddle;
 
+struct Ball
+{
+    ALLEGRO_BITMAP* img;
+    int x;
+    int y;
+    int dx;
+    int dy;
+
+};
+typedef struct Ball Ball;
+
 void error(const char *err);
-void initGame(ALLEGRO_DISPLAY **display, ALLEGRO_EVENT_QUEUE **queue);
-void drawWorld(ALLEGRO_DISPLAY *display);
-void drawMenu(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue);
-void loopMenu(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue);
-void loopGame(ALLEGRO_DISPLAY *display, ALLEGRO_EVENT_QUEUE *queue);
+void initGame();
+void drawWorld();
+void drawMenu();
+void loopMenu();
+void loopGame();
 
 void updatesScorePlayers();
 #endif //PONG_ALLEGRO_GAME_H
